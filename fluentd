@@ -65,14 +65,98 @@ $(function(){
 <div id="header"></div>
 <a href='index.html'>Home</a>
 <p>
-<ui>
+<ul>
 <li><a href="https://docs.fluentd.org/" target="new_window">Fluentd Docs</a>
+<li><a href="https://betterstack.com/community/guides/logging/fluentd-explained/" target='new_window'>Good Link</a>
 <li><a href="https://hub.docker.com/r/fluent/fluentd/">Fluentd Docker Image</a>
 </ul>
 <br>
 Fluentd is a log collecting tool that allows you to collect logs from one (or multiple sources) and organize them into one (or multiple sources).  This is useful to help keep your logs organized.  Here, we can can explore grabbing logs from a webserver that outputs to a file, a file that outputs to a http endpoint, and various docker containers.
 <div class="mainbody linux">
 <p>
+<div class="section linux" >
+	<div class="detailsbox"><b>Run Test Script (Optional)</b> You can run a test script that will just loop through and create logs.  This is optional, but if you want to test you have fluentd set up, it's good to have this running.
+	<br>
+	Run this as whatever name, but calling this 'logify.sh' for now.  This script will loop through and generate logs from the create_log_entry() function.  Simple.
+	</div>
+	<div class="codebox" data-copy-text="#!/bin/bash
+filepath=&quot;/var/log/logify/app.log&quot;
+
+create_log_entry() {
+    local info_messages=(&quot;Connected to database&quot; &quot;Task completed successfully&quot; &quot;Operation finished&quot; &quot;Initialized application&quot;)
+    local random_message=${info_messages[$RANDOM % ${#info_messages[@]}]}
+    local http_status_code=200
+    local ip_address=&quot;127.0.0.1&quot;
+    local emailAddress=&quot;user@mail.com&quot;
+    local level=30
+    local pid=$$
+    local ssn=&quot;407-01-2433&quot;
+    local time=$(date +%s)
+    local log='{&quot;status&quot;: '$http_status_code', &quot;ip&quot;: &quot;'$ip_address'&quot;, &quot;level&quot;: '$level', &quot;emailAddress&quot;: &quot;'$emailAddress'&quot;, &quot;msg&quot;: &quot;'$random_message'&quot;, &quot;pid&quot;: '$pid', &quot;ssn&quot;: &quot;'$ssn'&quot;, &quot;timestamp&quot;: '$time'}'
+    echo &quot;$log&quot;
+}
+
+while true; do
+    log_record=$(create_log_entry)
+    echo &quot;${log_record}&quot; >> &quot;${filepath}&quot;
+    sleep 3
+done">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+#!/bin/bash
+filepath=&quot;/var/log/logify/app.log&quot;
+
+create_log_entry() {
+    local info_messages=(&quot;Connected to database&quot; &quot;Task completed successfully&quot; &quot;Operation finished&quot; &quot;Initialized application&quot;)
+    local random_message=${info_messages[$RANDOM % ${#info_messages[@]}]}
+    local http_status_code=200
+    local ip_address=&quot;127.0.0.1&quot;
+    local emailAddress=&quot;user@mail.com&quot;
+    local level=30
+    local pid=$$
+    local ssn=&quot;407-01-2433&quot;
+    local time=$(date +%s)
+    local log='{&quot;status&quot;: '$http_status_code', &quot;ip&quot;: &quot;'$ip_address'&quot;, &quot;level&quot;: '$level', &quot;emailAddress&quot;: &quot;'$emailAddress'&quot;, &quot;msg&quot;: &quot;'$random_message'&quot;, &quot;pid&quot;: '$pid', &quot;ssn&quot;: &quot;'$ssn'&quot;, &quot;timestamp&quot;: '$time'}'
+    echo &quot;$log&quot;
+}
+
+while true; do
+    log_record=$(create_log_entry)
+    echo &quot;${log_record}&quot; >> &quot;${filepath}&quot;
+    sleep 3
+done
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Run Test Script (Optional)</b> Save the file and make it executable.  Run it in the background.  You don't have to run it right away, but the last command gives you the command to run it.
+	</div>
+	<div class="codebox" data-copy-text="chmod +x logify.sh
+sudo mkdir /var/log/logify
+sudo chown -R $USER:$USER /var/log/logify/
+">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- Make file executable ---
+# chmod +x logify.sh
+
+--- Create log directory as stated in script ---
+# sudo mkdir /var/log/logify
+
+--- Change ownership to currently logged in user ---
+# sudo chown -R $USER:$USER /var/log/logify/
+
+--- Run the script in the background ---
+# ./logify.sh &
+</code>
+</pre>
+	</div>
+</div>
+
 <div class="section linux" >
 	<div class="detailsbox"><b>Installation</b> Fluentd isn't exactly a straight up install, but you can pull down rpm packages and run a msi that pretty much works.  It also can be a docker container, which can be covered later.
 	<br>
@@ -90,6 +174,9 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
+--- Once done, verify the install ---
+# fluentd --version
+
 --- Config file (Default) ---
 /etc/fluent/fluentd.conf
 
@@ -134,8 +221,8 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 	@type tail
 	format json
 	read_from_head true
-	tag file-myapp.log
-	path /fluentd/log/files/example-log.log
+	tag logify.log
+	path /var/log/logify/app.log
 	pos_file /tmp/example-log.log.pos
 &lt;/source&gt;
 </code>
@@ -181,6 +268,72 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 </div>
 
 <div class="section linux" >
+	<div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> <a href='https://docs.fluentd.org/filter'>Link</a>: You can use filter plugins to modify the logs that are output.  Use these to replace or add, among other actions.
+	<br>
+	In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
+	<br>
+	<b>@type</b> - What type of filter plugin this is.  'record_transformer' is used to add/delete/modify events.
+	<br>
+	<b>remove_keys</b> - Since the logs are in JSON format, you can look for specific keys and omit them from the logs.  Here, I'm removing 'emailAddress'.
+	<br>
+	<b>Record Tag</b> - Here, I'm adding a field for the log.  I'm calling the key 'hostname'.  The value is the hostname of the computer.  Socket.gethostname provides that value.  Also I'm adding a timestamp in a more formatted look.
+	</div>
+	<div class="codebox" data-copy-text="&lt;filter logify.log&gt;
+  @type record_transformer
+  remove_keys emailAddress
+  &lt;record&gt;
+    hostname &quot;#{Socket.gethostname}&quot;
+	timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+  &lt;/record&gt;
+&lt;/filter&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- fluentd.conf ---
+&lt;filter logify.log&gt;
+  @type record_transformer
+  remove_keys emailAddress
+  &lt;record&gt;
+    hostname &quot;#{Socket.gethostname}&quot;
+	timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+  &lt;/record&gt;
+&lt;/filter&gt;
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> You can also work with conditionals with filters.  Let's say a key has a value you want to check.  You can output based off that.
+	<br>
+	is_successful will look for the key called 'record' and evaluate the value (200), much like an if statement.  If True, output true.  If False, output false.  This displays as a seperate field in the log.
+	</div>
+	<div class="codebox" data-copy-text="&lt;filter logify.log&gt;
+  ...
+  &lt;record&gt;
+    hostname &quot;#{Socket.gethostname}&quot;
+    timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+    is_successful ${record[&quot;status&quot;] == 200 ? &quot;true&quot; : &quot;false&quot;"}
+  &lt;/record&gt;
+&lt;/filter&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- fluentd.conf ---
+&lt;filter logify.log&gt;
+  ...
+  &lt;record&gt;
+    hostname &quot;#{Socket.gethostname}&quot;
+    timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+    is_successful ${record[&quot;status&quot;] == 200 ? &quot;true&quot; : &quot;false&quot;"}
+  &lt;/record&gt;
+&lt;/filter&gt;
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
 	<div class="detailsbox"><b>Config - Source Blocks - Output Plugins</b> <a href='https://docs.fluentd.org/output'>Link</a>: Once we have input plugins set up, we need to tell fluentd where to output the logs.  That's where output plugins come in.  They can come in various forms and you can output logs into all kinds of formats (S3, http endpoint, general file, elasticsearch, etc...).  This example just writes to a local file.  Good for testing.
 	<br>
 	In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
@@ -189,17 +342,17 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 	<br>
 	<b>path</b> - The path of the file you want to output to.
 	</div>
-	<div class="codebox" data-copy-text="&lt;match file-myapp.log&gt;
+	<div class="codebox" data-copy-text="&lt;match logify.log&gt;
 	@type file
-	path /output/file-myapp.log
+	path /output/logify.log
 &lt;/match&gt;">
 	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
-&lt;match file-myapp.log&gt;
+&lt;match logify.log&gt;
 	@type file
-	path /output/file-myapp.log
+	path /output/logify.log
 &lt;/match&gt;
 </code>
 </pre>
@@ -207,5 +360,50 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 </div>
 
 
+<div class="section linux" >
+	<div class="detailsbox"><b>Config</b> You can also just put includes and have the source blocks listed in seperate files.  Much like PHP.  Save these into fluent.conf.
+	</div>
+	<div class="codebox" data-copy-text="@include fluentd-source-block.conf">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+@include fluentd-source-block.conf
+@include fluentd-match-block.conf
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Config</b> Once done with the config, it's not a bad idea to go through a dry run and make sure the configs all work.
+	</div>
+	<div class="codebox" data-copy-text="sudo fluentd -c /etc/fluent/fluentd.conf -dry-run">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# sudo fluentd -c /etc/fluent/fluentd.conf -dry-run
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section linux" >
+	<div class="detailsbox">Now you can run the application in the background and then run fluentd.  You should see the logs appear.
+	</div>
+	<div class="codebox" data-copy-text="./logify.sh &
+sudo fluentd">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# ./logify.sh &
+# sudo fluentd
+
+--- If the conf file is not default, provide the path ---
+sudo fluentd -c &lt;/path/to/fluentd.conf&gt;
+</code>
+</pre>
+	</div>
+</div>
 
 </div>
