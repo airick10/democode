@@ -1,0 +1,211 @@
+<html>
+<head>
+<title>Eric's Knowledgebase</title>
+<link rel='icon' type='image/png' href='images/elibrary.png'>
+<link rel='stylesheet' type='text/css' href='librarystyle.css'>
+<link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.5.0/css/all.css' integrity='sha384-j8y0ITrvFafF4EkV1mPW0BKm6dp3c+J9Fky22Man50Ofxo2wNe5pT1oZejDH9/Dt' crossorigin='anonymous'>
+<link href='https://fonts.googleapis.com/css?family=Baloo+Thambi|IBM+Plex+Mono|Cabin' rel='stylesheet'>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<a href='index.html'>Home</a>
+<p>
+<ui>
+<li><a href="https://docs.fluentd.org/" target="new_window">Fluentd Docs</a>
+<li><a href="https://hub.docker.com/r/fluent/fluentd/">Fluentd Docker Image</a>
+</ul>
+<br>
+Fluentd is a log collecting tool that allows you to collect logs from one (or multiple sources) and organize them into one (or multiple sources).  This is useful to help keep your logs organized.  Here, we can can explore grabbing logs from a webserver that outputs to a file, a file that outputs to a http endpoint, and various docker containers.
+<div class="mainbody linux">
+<p>
+<div class="section linux" >
+	<div class="detailsbox"><b>Installation</b> Fluentd isn't exactly a straight up install, but you can pull down rpm packages and run a msi that pretty much works.  It also can be a docker container, which can be covered later.
+	<br>
+	<a href="https://docs.fluentd.org/installation/install-by-rpm">RH/Centos</a>
+	<br>
+	<a href="https://docs.fluentd.org/installation/install-by-deb">Debian/Ubuntu</a>
+	<br>
+	<a href="https://docs.fluentd.org/installation/install-by-msi">Windows</a>
+	<br>
+	<a href="https://docs.fluentd.org/installation/install-by-dmg">MacOS</a>
+	<br>
+	Once done, the linux path for the conf file is usually /etc/fluent/fluentd.conf.  
+	</div>
+	<div class="codebox" data-copy-text="sudo systemctl restart fluentd">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- Config file (Default) ---
+/etc/fluent/fluentd.conf
+
+--- Once done editing, restart the service (COPY BTN) ---
+# sudo systemctl restart fluentd
+
+--- Default log fluentd writes to ---
+/var/log/fluent/fluentd.log
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> <a href='https://docs.fluentd.org/input'>Link</a>: This the configuration needed to tell fluentd where the logs are that you want to collect.  This is for a straight up file.
+	<br>
+	<b>@type</b> - What type of input plugin this is.  'tail' allows Fluentd to read events from the tail of text files  
+	<br>
+	<b>format</b> - What format is this log in?
+	<br>
+	<b>read_from_head</b> - Does fluentd start at the beginning of the file?  True or false
+	<br>
+	<b>tag</b> - The ID of this block, essentially.  Will need this tag to link up with a 'match' block.
+	<br>
+	<b>path</b> - The path of where this log is so fluentd can find it.
+	<br>
+	<b>pos_file</b> - A file used for fluentd to track where in the log it needs to start over in case there's an interruption.
+	</div>
+	<div class="codebox" data-copy-text="&lt;source&gt;
+	@type tail
+	format json
+	read_from_head true
+	tag file-myapp.log
+	path /fluentd/log/files/example-log.log
+	pos_file /tmp/example-log.log.pos
+&lt;/source&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- fluentd.conf ---
+&lt;source&gt;
+	@type tail
+	format json
+	read_from_head true
+	tag file-myapp.log
+	path /fluentd/log/files/example-log.log
+	pos_file /tmp/example-log.log.pos
+&lt;/source&gt;
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> Same idea, but this input block is used to run on a cloud service or http server that you can't install fluentd.  However, you can set this to write to some sort of http endpoint.
+	<br>
+	<b>@type</b> - What type of input plugin this is.  'http' says this is a web server or cloud service.
+	<br>
+	<b>port</b> - What port fluentd can expect the logs?
+	<br>
+	<b>bind</b> - The IP address to bind to.
+	<br>
+	<b>body_size_limit</b> - Size limit of the logs
+	<br>
+	<b>keepalive_timeout</b> - Keep the connection open for this amount of time.
+	</div>
+	<div class="codebox" data-copy-text="&lt;source&gt;
+	@type http
+	port 9880
+	bind 0.0.0.0
+	body_size_limit 32m
+	keepalive_timeout 10s
+&lt;/source&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- fluentd.conf ---
+&lt;source&gt;
+	@type http
+	port 9880
+	bind 0.0.0.0
+	body_size_limit 32m
+	keepalive_timeout 10s
+&lt;/source&gt;
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section linux" >
+	<div class="detailsbox"><b>Config - Source Blocks - Output Plugins</b> <a href='https://docs.fluentd.org/output'>Link</a>: Once we have input plugins set up, we need to tell fluentd where to output the logs.  That's where output plugins come in.  They can come in various forms and you can output logs into all kinds of formats (S3, http endpoint, general file, elasticsearch, etc...).  This example just writes to a local file.  Good for testing.
+	<br>
+	In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
+	<br>
+	<b>@type</b> - What type of output plugin this is.  'file' just outputs the logs collected to a single local file.
+	<br>
+	<b>path</b> - The path of the file you want to output to.
+	</div>
+	<div class="codebox" data-copy-text="&lt;match file-myapp.log&gt;
+	@type file
+	path /output/file-myapp.log
+&lt;/match&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- fluentd.conf ---
+&lt;match file-myapp.log&gt;
+	@type file
+	path /output/file-myapp.log
+&lt;/match&gt;
+</code>
+</pre>
+	</div>
+</div>
+
+
+
+</div>
